@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Management - Vertretungsplan</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 16px; max-width: 980px; }
+    button { padding: 10px 14px; margin: 8px 0; }
+    textarea, input { width: 100%; font-size: 16px; }
+    .row { margin: 14px 0; }
+    .hint { color: #555; }
+    .two { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .box { padding: 12px; border: 1px solid #ddd; border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Management – Vertretungsplan</h1>
+  <div class="hint">Diese Seite ist per Passwort geschützt (HTTP Basic Auth).</div>
+
+  <div class="row box">
+    <button id="reloadBtn">PDF-Dateien jetzt neu einlesen</button><br>
+    <button id="reloadBrowserBtn">🖥️ Kiosk-Browser neu laden</button>
+    <div class="hint">PDF-Neu-Einlesen passiert zusätzlich automatisch alle 2 Minuten.</div>
+  </div>
+
+  <div class="row box">
+    <h2>Anzeige-Einstellungen</h2>
+
+    <label>
+      Zeit zwischen Umblättern (Sekunden, 1–600)
+      <input id="flipSeconds" type="number" min="1" max="600" />
+    </label>
+
+    <div class="two">
+      <label>
+        Ordnerpfad LINKS (relativ zum Projekt oder absolut)
+        <input id="folderLinks" type="text" placeholder="public/links oder D:\...\links" />
+      </label>
+
+      <label>
+        Ordnerpfad RECHTS (relativ zum Projekt oder absolut)
+        <input id="folderRechts" type="text" placeholder="public/rechts oder D:\...\rechts" />
+      </label>
+    </div>
+
+    <button id="saveConfigBtn">Einstellungen speichern</button>
+    <div id="saveMsg" class="hint"></div>
+  </div>
+
+  <div class="row box">
+    <h2>Lauftext</h2>
+    <textarea id="ticker" rows="4" placeholder="Lauftext eingeben..."></textarea><br>
+    <button id="saveTickerBtn">Lauftext speichern</button>
+  </div>
+
+  <script>
+    async function loadAll() {
+      const cfgRes = await fetch("/admin/config");
+      const cfg = await cfgRes.json();
+
+      flipSeconds.value = Math.round((cfg.flipIntervalMs || 10000) / 1000);
+      folderLinks.value = cfg.folders?.links || "public/links";
+      folderRechts.value = cfg.folders?.rechts || "public/rechts";
+
+      const tRes = await fetch("/admin/ticker");
+      const tData = await tRes.json();
+      ticker.value = tData.text || "";
+    }
+
+    reloadBtn.onclick = async () => {
+      const res = await fetch("/admin/reload", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      alert(res.ok ? `Neu eingelesen.\n${data.lastReload || ""}` : `Fehler: ${data.error || res.status}`);
+    };
+
+    reloadBrowserBtn.onclick = async () => {
+      const ok = confirm("Soll der Kiosk-Browser neu geladen werden?\n\nAlle Kiosk-Anzeigen starten neu.");
+      if (!ok) return;
+
+      const res = await fetch("/admin/trigger-reload", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        alert(`Fehler beim Reload-Signal.\nStatus: ${res.status}\n${data.error || ""}`);
+      } else {
+        alert("Reload-Signal gesendet.");
+      }
+    };
+
+    saveTickerBtn.onclick = async () => {
+      await fetch("/admin/ticker", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: ticker.value })
+      });
+      alert("Gespeichert.");
+    };
+
+    saveConfigBtn.onclick = async () => {
+      saveMsg.textContent = "";
+
+      const payload = {
+        flipIntervalSeconds: Number(flipSeconds.value),
+        folders: {
+          links: folderLinks.value.trim(),
+          rechts: folderRechts.value.trim()
+        }
+      };
+
+      const res = await fetch("/admin/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        saveMsg.textContent = "Fehler: " + (data.error || "Unbekannt");
+        alert(saveMsg.textContent);
+        return;
+      }
+
+      saveMsg.textContent = "Gespeichert. (PDFs wurden neu eingelesen)";
+      alert(saveMsg.textContent);
+    };
+
+    loadAll();
+  </script>
+</body>
+</html>

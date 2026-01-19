@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lauftext ändern</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 16px; max-width: 900px; }
+    textarea, input { width: 100%; font-size: 16px; }
+    button { padding: 10px 14px; margin-top: 10px; }
+    .hint { color: #555; margin-top: 8px; }
+    .box { padding: 12px; border: 1px solid #ddd; border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Lauftext</h1>
+  <div class="hint">Diese Seite kann nur den Lauftext ändern.</div>
+
+  <div class="box">
+    <label>
+      PIN
+      <input id="pin" type="password" placeholder="PIN eingeben">
+    </label>
+
+    <label style="margin-top:10px; display:block;">
+      Lauftext
+      <textarea id="text" rows="4" placeholder="Lauftext eingeben..."></textarea>
+    </label>
+
+    <button id="save">Speichern</button>
+    <div id="msg" class="hint"></div>
+  </div>
+
+  <script>
+    async function loadTicker() {
+      try {
+        const res = await fetch("/kiosk/ticker", { cache: "no-store" });
+        const data = await res.json();
+        text.value = data.text || "";
+      } catch {
+        // ignorieren
+      }
+    }
+
+    save.onclick = async () => {
+      msg.textContent = "";
+      const p = pin.value.trim();
+      if (!p) { msg.textContent = "Bitte PIN eingeben."; return; }
+
+      const res = await fetch("/ticker/set", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Ticker-Pin": p
+        },
+        body: JSON.stringify({ text: text.value })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        msg.textContent = data.error || "Fehler beim Speichern.";
+        return;
+      }
+
+      msg.textContent = "Gespeichert – Kiosk lädt neu …";
+    };
+
+    loadTicker();
+  </script>
+</body>
+</html>

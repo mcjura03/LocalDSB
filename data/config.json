@@ -1,0 +1,20 @@
+{
+    "adminPassword": "changeme",
+  
+    "tickerPin": "1234",
+  
+    "flipIntervalMs": 10000,
+  
+    "folders": {
+      "links": "public/links",
+      "rechts": "public/rechts"
+    },
+  
+    "ui": {
+      "pdfScale": 0.8,
+      "pdfBorderRadiusPx": 20,
+      "backgroundImage": "bg.png",
+      "backgroundBlurPx": 12
+    }
+  }
+  
